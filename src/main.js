@@ -1,16 +1,16 @@
 export default async ({ req, res, log, error }) => {
   const payload = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-  const { action, phoneNumber, otpCode, packageCode } = payload;
+  const { action, phoneNumber, otpCode } = payload;
 
   try {
-    // ၁။ OTP ပို့ရန် Request
+    // ၁။ OTP ပို့ခြင်း
     if (action === 'send') {
       const url = `https://apis.mytel.com.mm/myid/authen/v1.0/login/method/otp/get-otp?phoneNumber=${phoneNumber}`;
       const response = await fetch(url);
       return res.json(await response.json());
     }
 
-    // ၂။ OTP စစ်ဆေးပြီး Login ဝင်ရန်
+    // ၂။ OTP စစ်ဆေးခြင်း (Login)
     if (action === 'verify') {
       const url = `https://apis.mytel.com.mm/myid/authen/v1.0/login/method/otp/validate-otp`;
       const response = await fetch(url, {
@@ -27,17 +27,23 @@ export default async ({ req, res, log, error }) => {
       return res.json(await response.json());
     }
 
-    // ၃။ လက်ရှိ Balance နှင့် MB အချက်အလက်များ ဆွဲယူရန်
+    // ၃။ Profile Data (MB/Balance) ဆွဲယူခြင်း
     if (action === 'get_profile') {
       const url = `https://apis.mytel.com.mm/myid/api/v1.0/user/profile-info?msisdn=${phoneNumber}`;
       const response = await fetch(url, {
         headers: { 'Accept-Language': 'my' }
       });
-      return res.json(await response.json());
+      const result = await response.json();
+      
+      // Variable Name များကို UI နှင့် ကိုက်ညီအောင် ပြန်ပို့ပေးခြင်း
+      return res.json({
+        balance: result.data?.mainBalance || "0",
+        voice: result.data?.voiceBalance || "0",
+        dataMB: result.data?.dataBalance || "0"
+      });
     }
 
     return res.json({ message: "Invalid Action" }, 400);
-
   } catch (err) {
     error(err.message);
     return res.json({ error: err.message }, 500);
