@@ -1,0 +1,8 @@
+{
+  "name": "developerweb",
+  "version": "1.0.0",
+  "description": "MTom Store OTP Function",
+  "main": "src/main.js",
+  "type": "module",
+  "dependencies": {}
+}
