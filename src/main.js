@@ -4,7 +4,7 @@ export default async ({ req, res, log, error }) => {
   const { action, phoneNumber, otpCode } = payload;
 
   try {
-    // ၁။ OTP ပို့ရန် (Send OTP Action)
+    // ၁။ OTP ပို့ရန် (Action: send)
     if (action === 'send') {
       const sendUrl = `https://apis.mytel.com.mm/myid/authen/v1.0/login/method/otp/get-otp?phoneNumber=${phoneNumber}`;
       const response = await fetch(sendUrl);
@@ -12,7 +12,7 @@ export default async ({ req, res, log, error }) => {
       return res.json(data);
     }
 
-    // ၂။ Login ဝင်ရန် OTP စစ်ဆေးခြင်း (Verify OTP Action)
+    // ၂။ Login ဝင်ရန် OTP စစ်ဆေးခြင်း (Action: verify)
     if (action === 'verify') {
       const validateUrl = `https://apis.mytel.com.mm/myid/authen/v1.0/login/method/otp/validate-otp`;
       const response = await fetch(validateUrl, {
