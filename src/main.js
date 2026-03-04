@@ -24,8 +24,12 @@ export default async ({ req, res, log, error }) => {
           phoneNumber: phoneNumber,
           password: otpCode,
           appVersion: "2.0.14",
-          deviceId: "f433d8978f20b862", // ဒီ ID ကို တသမတ်တည်း ထားပေးပါ
-          osApp: "ANDROID"
+          buildVersionApp: "281",
+          deviceId: "f433d8978f20b862",
+          imei: "f433d8978f20b862",
+          os: "ANDROID OPPO PDVM00",
+          osApp: "ANDROID",
+          version: "11"
         })
       });
       const data = await response.json();
@@ -48,6 +52,7 @@ export default async ({ req, res, log, error }) => {
       });
     }
   } catch (err) {
+    error(err.message);
     return res.json({ error: err.message }, 500);
   }
 };
