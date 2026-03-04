@@ -9,28 +9,37 @@ export default async ({ req, res, log, error }) => {
   };
 
   try {
-    // ၁။ OTP တောင်းခြင်း
+    // ၁။ OTP တောင်းဆိုခြင်း
     if (action === 'send') {
       const url = `https://apis.mytel.com.mm/myid/authen/v1.0/login/method/otp/get-otp?phoneNumber=${phoneNumber}`;
       const response = await fetch(url, { headers: commonHeaders });
       return res.json(await response.json());
     }
 
-    // ၂။ Login Verify လုပ်ခြင်း
+    // ၂။ Login အတည်ပြုခြင်း (Message ကျလာစေရန် Device Info ထည့်ထားသည်)
     if (action === 'verify') {
       const url = `https://apis.mytel.com.mm/myid/authen/v1.0/login/method/otp/validate-otp`;
       const response = await fetch(url, {
         method: 'POST',
         headers: commonHeaders,
         body: JSON.stringify({
-          phoneNumber: phoneNumber, password: otpCode,
-          appVersion: "2.0.14", deviceId: "f433d8978f20b862", osApp: "ANDROID"
+          phoneNumber: phoneNumber,
+          password: otpCode,
+          appVersion: "2.0.14",
+          buildVersionApp: "281",
+          deviceId: "f433d8978f20b862",
+          imei: "f433d8978f20b862",
+          os: "ANDROID OPPO PDVM00", // သင်ပြထားသော Device Model
+          osApp: "ANDROID",
+          version: "11" // သင်ပြထားသော Version
         })
       });
-      return res.json(await response.json());
+      const data = await response.json();
+      log("Login Response: " + JSON.stringify(data));
+      return res.json(data);
     }
 
-    // ၃။ Profile Data ဆွဲခြင်း
+    // ၃။ Profile (MB/Balance) အချက်အလက်ယူခြင်း
     if (action === 'get_profile') {
       const url = `https://apis.mytel.com.mm/myid/api/v1.0/user/profile-info?msisdn=${phoneNumber}`;
       const response = await fetch(url, {
@@ -46,7 +55,7 @@ export default async ({ req, res, log, error }) => {
       });
     }
 
-    // ၄။ Package ဝယ်ခြင်း (GG3, S91 စသည်ဖြင့် Dynamic ဝယ်ယူနိုင်သည်)
+    // ၄။ Package ဝယ်ယူခြင်း (GG3, S91 စသည်ဖြင့်)
     if (action === 'buy_package') {
       const url = `https://apis.mytel.com.mm/csm/v1.0/api/vas-package/${packageCode}/register`;
       const response = await fetch(url, {
@@ -61,6 +70,7 @@ export default async ({ req, res, log, error }) => {
       return res.json(data);
     }
   } catch (err) {
+    error(err.message);
     return res.json({ error: err.message }, 500);
   }
 };
