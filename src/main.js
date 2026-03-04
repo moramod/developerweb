@@ -3,9 +3,10 @@ export default async ({ req, res, log, error }) => {
   const { action, phoneNumber, otpCode, token, packageCode } = payload;
 
   const commonHeaders = {
-    'Content-Type': 'application/json',
+    'Content-Type': 'application/json; charset=utf-8',
     'User-Agent': 'okhttp/4.9.1',
-    'Accept-Language': 'my'
+    'Accept-Encoding': 'gzip',
+    'Host': 'apis.mytel.com.mm'
   };
 
   try {
@@ -29,9 +30,9 @@ export default async ({ req, res, log, error }) => {
           buildVersionApp: "281",
           deviceId: "f433d8978f20b862",
           imei: "f433d8978f20b862",
-          os: "ANDROID OPPO PDVM00", // သင်ပြထားသော Device Model
+          os: "ANDROID OPPO PDVM00", 
           osApp: "ANDROID",
-          version: "11" // သင်ပြထားသော Version
+          version: "11" 
         })
       });
       const data = await response.json();
@@ -58,11 +59,16 @@ export default async ({ req, res, log, error }) => {
     // ၄။ Package ဝယ်ယူခြင်း (GG3, S91 စသည်ဖြင့်)
     if (action === 'buy_package') {
       const url = `https://apis.mytel.com.mm/csm/v1.0/api/vas-package/${packageCode}/register`;
+      const formattedMsisdn = phoneNumber.startsWith('+') ? phoneNumber : `+95${phoneNumber.replace(/^0/, '')}`;
+      
       const response = await fetch(url, {
         method: 'POST',
-        headers: { ...commonHeaders, 'Authorization': `Bearer ${token}` },
+        headers: { 
+            ...commonHeaders, 
+            'Authorization': `Bearer ${token}` 
+        },
         body: JSON.stringify({
-          msisdn: phoneNumber.startsWith('+') ? phoneNumber : `+95${phoneNumber.replace(/^0/, '')}`,
+          msisdn: formattedMsisdn,
           isRenew: false
         })
       });
