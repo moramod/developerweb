@@ -1,153 +1,115 @@
-export default async ({ req, res, log, error }) => {
+// server.js
+require('dotenv').config(); // .env ဖိုင်ကို ဖတ်မယ်
+const express = require('express');
+const cors = require('cors');
+const fetch = require('node-fetch');
 
-  try {
+const app = express();
+app.use(cors());
+app.use(express.json());
 
-    const payload =
-      typeof req.body === "string"
-        ? JSON.parse(req.body)
-        : req.body || {};
+// --- ⚠️ API Keys & Configuration (from .env) ---
+const MYTEL_API_BASE = process.env.MYTEL_API_URL || 'https://apis.mytel.com.mm';
+const APP_VERSION = process.env.APP_VERSION || '1.0.79';
+const BUILD_VERSION = process.env.BUILD_VERSION || '188';
+const VERSION_OS = process.env.OS_VERSION || '7.1';
+const OS_TYPE = process.env.OS_TYPE || 'ANDROID google Pixel 4';
+const DEVICE_ID = process.env.DEVICE_ID || 'b40c086522809d13';
 
-    const { action, phoneNumber, otpCode, token, packageCode } = payload;
-
-    if (!action) {
-      return res.json({ error: "Missing action" }, 400);
-    }
-
-    const commonHeaders = {
-      "Content-Type": "application/json; charset=utf-8",
-      "User-Agent": "okhttp/4.9.1",
-      "Accept-Encoding": "gzip",
-      "Host": "apis.mytel.com.mm"
-    };
-
-    const safeJson = async (response) => {
-      const text = await response.text();
-      try {
-        return JSON.parse(text);
-      } catch {
-        return { raw: text };
-      }
-    };
-
-    /* ================= SEND OTP ================= */
-
-    if (action === "send") {
-
-      if (!phoneNumber) {
-        return res.json({ error: "Phone required" }, 400);
-      }
-
-      const url =
-        `https://apis.mytel.com.mm/myid/authen/v1.0/login/method/otp/get-otp?phoneNumber=${phoneNumber}`;
-
-      const response = await fetch(url, {
-        method: "GET",
-        headers: commonHeaders
-      });
-
-      const data = await safeJson(response);
-      return res.json(data);
-    }
-
-    /* ================= VERIFY ================= */
-
-    if (action === "verify") {
-
-      if (!phoneNumber || !otpCode) {
-        return res.json({ error: "Phone and OTP required" }, 400);
-      }
-
-      const url =
-        `https://apis.mytel.com.mm/myid/authen/v1.0/login/method/otp/validate-otp`;
-
-      const response = await fetch(url, {
-        method: "POST",
-        headers: commonHeaders,
-        body: JSON.stringify({
-          phoneNumber,
-          password: otpCode,
-          appVersion: "2.0.14",
-          buildVersionApp: "281",
-          deviceId: "f433d8978f20b862",
-          imei: "f433d8978f20b862",
-          os: "ANDROID OPPO PDVM00",
-          osApp: "ANDROID",
-          version: "11"
-        })
-      });
-
-      const data = await safeJson(response);
-      log("Login Response: " + JSON.stringify(data));
-
-      return res.json(data);
-    }
-
-    /* ================= PROFILE ================= */
-
-    if (action === "get_profile") {
-
-      if (!phoneNumber || !token) {
-        return res.json({ error: "Phone and token required" }, 400);
-      }
-
-      const url =
-        `https://apis.mytel.com.mm/myid/api/v1.0/user/profile-info?msisdn=${phoneNumber}`;
-
-      const response = await fetch(url, {
-        method: "GET",
-        headers: {
-          ...commonHeaders,
-          Authorization: `Bearer ${token}`
+// --- Route: Validate OTP (MyTel API Call) ---
+app.post('/myid/authen/v1.0/login/method/otp/validate-otp', async (req, res) => {
+    try {
+        const { phoneNumber, password } = req.body;
+        
+        if (!phoneNumber || !password) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Phone number and OTP required' 
+            });
         }
-      });
 
-      const result = await safeJson(response);
+        // Prepare Request Body
+        const requestBody = {
+            "appVersion": APP_VERSION,
+            "buildVersionApp": BUILD_VERSION,
+            "deviceId": DEVICE_ID,
+            "imei": DEVICE_ID,
+            "os": OS_TYPE,
+            "osApp": "ANDROID",
+            "password": password,      // ✅ This is your OTP!
+            "phoneNumber": phoneNumber,
+            "version": VERSION_OS
+        };
 
-      return res.json({
-        ocsAccount: {
-          balance: result?.data?.mainBalance || "0",
-          voice: result?.data?.voiceBalance || "0",
-          data: result?.data?.dataBalance || "0"
-        }
-      });
+        console.log('🔐 Sending OTP Validation to MyTel API...');
+
+        // Call MyTel API
+        const mytelResponse = await fetch(`${MYTEL_API_BASE}/myid/authen/v1.0/login/method/otp/validate-otp`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json; charset=UTF-8',                'Accept-Language': 'en',
+                'User-Agent': 'okhttp/4.9.1'
+            },
+            body: JSON.stringify(requestBody)
+        });
+
+        const result = await mytelResponse.json();
+
+        console.log('✅ MyTel Response:', result);
+
+        // Return the API response to frontend
+        res.status(mytelResponse.status).json(result);
+
+    } catch (error) {
+        console.error('❌ Error validating OTP:', error.message);
+        res.status(500).json({
+            success: false,
+            message: 'OTP validation failed: ' + error.message
+        });
     }
+});
 
-    /* ================= BUY PACKAGE ================= */
+// Route: Send OTP (Optional - if you need to send first)
+app.post('/myid/authen/v1.0/login/method/otp/send', async (req, res) => {
+    try {
+        const { phoneNumber } = req.body;
+        
+        const requestBody = {
+            "appVersion": APP_VERSION,
+            "buildVersionApp": BUILD_VERSION,
+            "deviceId": DEVICE_ID,
+            "imei": DEVICE_ID,
+            "os": OS_TYPE,
+            "osApp": "ANDROID",
+            "phoneNumber": phoneNumber,
+            "version": VERSION_OS
+        };
 
-    if (action === "buy_package") {
+        const mytelResponse = await fetch(`${MYTEL_API_BASE}/myid/authen/v1.0/login/method/otp/send`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json; charset=UTF-8',
+                'Accept-Language': 'en'
+            },
+            body: JSON.stringify(requestBody)
+        });
 
-      if (!phoneNumber || !token || !packageCode) {
-        return res.json({ error: "Missing fields" }, 400);
-      }
-
-      const formattedMsisdn =
-        phoneNumber.startsWith("+")
-          ? phoneNumber
-          : `+95${phoneNumber.replace(/^0/, "")}`;
-
-      const url =
-        `https://apis.mytel.com.mm/csm/v1.0/api/vas-package/${packageCode}/register`;
-
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          ...commonHeaders,
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          msisdn: formattedMsisdn,
-          isRenew: false
-        })
-      });
-
-      const data = await safeJson(response);
-      return res.json(data);
+        const result = await mytelResponse.json();
+        res.status(mytelResponse.status).json(result);
+    } catch (error) {
+        console.error('❌ Error sending OTP:', error.message);
+        res.status(500).json({ success: false, message: error.message });
     }
+});
 
-    return res.json({ error: "Invalid action" }, 400);
+// Health Check
+app.get('/health', (req, res) => {
+    res.json({ status: 'OK', version: '1.0.0' });
+});
 
-  } catch (err) {
-    error("Server Error: " + err.message);
-    return res.json({ error: "Internal Server Error" }, 500);
-  }
-};
+// Start Server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log(`🔐 Using MyTel API Base: ${MYTEL_API_BASE}`);
+});
